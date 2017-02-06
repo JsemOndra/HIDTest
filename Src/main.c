@@ -115,15 +115,15 @@ int main(void)
 		HAL_Delay(100);
 		   // mediaHID.keys = USB_HID_VOL_DEC;
 		   // USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID, sizeof(struct mediaHID_t));
-		    HAL_Delay(30);
+		   // HAL_Delay(30);
 		  //  mediaHID.keys = 0;
 		  //  USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID, sizeof(struct mediaHID_t));
-		    HAL_Delay(30);
+		   // HAL_Delay(30);
 
 		  //  keyboardHID.modifiers = USB_HID_MODIFIER_RIGHT_SHIFT;
 		  //  keyboardHID.key1 = USB_HID_KEY_L;
 		  //  USBD_HID_SendReport(&hUsbDeviceFS, &keyboardHID, sizeof(struct keyboardHID_t));
-		    HAL_Delay(30);
+		  //  HAL_Delay(30);
 		  //  keyboardHID.modifiers = 0;
 		  //  keyboardHID.key1 = 0;
 		  //  USBD_HID_SendReport(&hUsbDeviceFS, &keyboardHID, sizeof(struct keyboardHID_t));
