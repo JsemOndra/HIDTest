@@ -1,5 +1,5 @@
 # HIDTest
-This is very simple test of USB HID device on STM32F103 device. 
+This is very simple test of USB HID device on STM32F103 blue pill board . 
 This device should be able to do following stuff:
 - volume up/down/mute
 - play/pause

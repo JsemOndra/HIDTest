@@ -1,0 +1,10 @@
+/Release/
+/Debug/
+.code_review_properties
+.cproject
+.mxproject
+.project
+test.elf.launch
+STM32F103C8_FLASH.Id
+test.ioc
+.settings
