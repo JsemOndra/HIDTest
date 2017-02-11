@@ -43,14 +43,32 @@ extern USBD_HandleTypeDef hUsbDeviceFS;
 /* Private variables ---------------------------------------------------------*/
 
 /* USER CODE BEGIN PV */
+// HID Media
+struct mediaHID_t {
+	uint8_t id;
+	uint8_t keys;
+};
+// HID Keyboard
+struct keyboardHID_t {
+	uint8_t id;
+	uint8_t modifiers;
+	uint8_t key1;
+	uint8_t key2;
+	uint8_t key3;
+};
 /* Private variables ---------------------------------------------------------*/
-uint8_t buffer[5];
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 void Error_Handler(void);
 static void MX_GPIO_Init(void);
+void sendMediaKey();
+void sendStdKey();
+void releaseStdKey();
+void releaseMediaKey();
+void releaseStdKey();
+void releaseAllKeys();
 
 /* USER CODE BEGIN PFP */
 /* Private function prototypes -----------------------------------------------*/
@@ -64,27 +82,7 @@ static void MX_GPIO_Init(void);
 int main(void) {
 
 	/* USER CODE BEGIN 1 */
-	struct keyboardHID_t {
-		uint8_t id;
-		uint8_t modifiers;
-		uint8_t key1;
-		uint8_t key2;
-		uint8_t key3;
-	};
-	struct keyboardHID_t keyboardHID;
-	keyboardHID.id = 1;
-	keyboardHID.modifiers = 0;
-	keyboardHID.key1 = 0;
-	keyboardHID.key2 = 0;
-	keyboardHID.key3 = 0;
-	// HID Media
-	struct mediaHID_t {
-		uint8_t id;
-		uint8_t keys;
-	};
-	struct mediaHID_t mediaHID;
-	mediaHID.id = 2;
-	mediaHID.keys = 0;
+
 	/* USER CODE END 1 */
 
 	/* MCU Configuration----------------------------------------------------------*/
@@ -105,6 +103,7 @@ int main(void) {
 
 	/* Infinite loop */
 	/* USER CODE BEGIN WHILE */
+
 	while (1) {
 		/* USER CODE END WHILE */
 
@@ -112,56 +111,83 @@ int main(void) {
 		HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
 
 		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_0) == GPIO_PIN_SET) { /// volume down
-			mediaHID.keys = USB_HID_VOL_DEC;
-			USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-					sizeof(struct mediaHID_t));
-
+			sendMediaKey(USB_HID_VOL_DEC);
 		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_1) == GPIO_PIN_SET) { ///volume up
-			mediaHID.keys = USB_HID_VOL_UP;
-			USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-					sizeof(struct mediaHID_t));
-
-		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_SET) { ////volume mute
-			mediaHID.keys = USB_HID_MUTE;
-			USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-					sizeof(struct mediaHID_t));
-
-		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET) { ///play/pause
-			mediaHID.keys = USB_HID_PAUSE;
-			USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-					sizeof(struct mediaHID_t));
-		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11) == GPIO_PIN_SET) { // previous
-			mediaHID.keys = USB_HID_SCAN_PREV;
-			USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-					sizeof(struct mediaHID_t));
-		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12) == GPIO_PIN_SET) { // next
-			mediaHID.keys = USB_HID_SCAN_NEXT;
-			USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-					sizeof(struct mediaHID_t));
-		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_SET) { // lock screen
-			keyboardHID.modifiers = USB_HID_MODIFIER_LEFT_GUI;
-			keyboardHID.key1 = USB_HID_KEY_L;
-			USBD_HID_SendReport(&hUsbDeviceFS, &keyboardHID,
-					sizeof(struct keyboardHID_t));
-
+			sendMediaKey(USB_HID_VOL_UP);
 		}
+
+		if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_SET) { ////volume mute
+			sendMediaKey(USB_HID_MUTE);
+		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET) { ///play/pause
+			sendMediaKey(USB_HID_PAUSE);
+			//sendMediaKey(USB_HID_STOP);
+		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11) == GPIO_PIN_SET) { // previous
+			sendMediaKey(USB_HID_SCAN_PREV);
+		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12) == GPIO_PIN_SET) { // next
+			sendMediaKey(USB_HID_SCAN_NEXT);
+		} else if (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_SET) { // lock screen
+
+			sendStdKey(USB_HID_MODIFIER_LEFT_GUI, USB_HID_KEY_L, 0, 0);
+			//sendStdKey(USB_HID_MODIFIER_LEFT_ALT, USB_HID_KEY_TAB, 0, 0);
+		}
+		while (HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_13) == GPIO_PIN_SET // volume mute
+		|| HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_10) == GPIO_PIN_SET // play/pause
+		|| HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_11) == GPIO_PIN_SET // previous
+		|| HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_12) == GPIO_PIN_SET //next
+		|| HAL_GPIO_ReadPin(GPIOB, GPIO_PIN_14) == GPIO_PIN_SET) { // lock screen
+			//do nothing while some of those keys above are pressed
+			HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+			HAL_Delay(50);
+		}
+		HAL_Delay(100);
+
+	}
+	/* USER CODE END 3 */
+
+}
+void sendMediaKey(int key) {
+	struct mediaHID_t mediaHID;
+	mediaHID.id = 2;
+	mediaHID.keys = key;
+	USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID, sizeof(struct mediaHID_t));
+	HAL_Delay(30);
+	releaseMediaKey();
+
+}
+void sendStdKey(int modifier, int key1, int key2, int key3) {
+	struct keyboardHID_t keyboardHID;
+	keyboardHID.id = 1;
+	keyboardHID.modifiers = modifier;
+	keyboardHID.key1 = key1;
+	keyboardHID.key2 = key2;
+	keyboardHID.key3 = key3;
+	USBD_HID_SendReport(&hUsbDeviceFS, &keyboardHID,
+			sizeof(struct keyboardHID_t));
+	HAL_Delay(30);
+	releaseStdKey();
+
+
+
+}
+void releaseMediaKey() {
+	struct mediaHID_t mediaHID;
+		mediaHID.id = 2;
+		mediaHID.keys = 0;
+		USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID, sizeof(struct mediaHID_t));
+}
+void releaseStdKey() {
+	struct keyboardHID_t keyboardHID;
+		keyboardHID.id = 1;
 		keyboardHID.modifiers = 0;
 		keyboardHID.key1 = 0;
 		keyboardHID.key2 = 0;
 		keyboardHID.key3 = 0;
 		USBD_HID_SendReport(&hUsbDeviceFS, &keyboardHID,
 				sizeof(struct keyboardHID_t));
-		HAL_Delay(30);
-
-		mediaHID.keys = 0;
-		USBD_HID_SendReport(&hUsbDeviceFS, &mediaHID,
-				sizeof(struct mediaHID_t));
-
-
-		HAL_Delay(150);
-
-	}
-	/* USER CODE END 3 */
+}
+void releaseAllKeys() {
+	releaseStdKey();
+	releaseAllKeys();
 
 }
 
@@ -260,6 +286,7 @@ void Error_Handler(void) {
 	/* USER CODE BEGIN Error_Handler */
 	/* User can add his own implementation to report the HAL error return state */
 	while (1) {
+		HAL_NVIC_SystemReset();
 	}
 	/* USER CODE END Error_Handler */
 }
